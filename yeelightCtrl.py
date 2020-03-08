@@ -270,11 +270,11 @@ def set_BulbState(idx, state):
   else:
     params="\"on\",\"smooth\",500"
 
-  print "Command Recieved:" + params
+  #print "Command Recieved:" + params
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print "connect ",bulb_ip, port ,"..."
+    #print "connect ",bulb_ip, port ,"..."
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -300,11 +300,11 @@ def find_BulbState(idx):
 
   params="\"power\""
 
-  print "Command Recieved:" + params
+  #print "Command Recieved:" + params
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print "connect ",bulb_ip, port ,"..."
+    #print "connect ",bulb_ip, port ,"..."
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -315,7 +315,7 @@ def find_BulbState(idx):
 
 def recieve_BulbState():
   '''
-  recieve bulb state cyclically
+  a standalone thread broadcasting search request and listening on all responses
   '''
   debug("bulbs_detection_loop running")
   search_interval=30000
@@ -335,9 +335,8 @@ def recieve_BulbState():
             break
         else:
             print e
-            break
+            sys.exit(1)
       handle_BulbResponse(ndata)
-      break
 
     # passive listener
     while True:
@@ -349,12 +348,12 @@ def recieve_BulbState():
             break
         else:
             print e
-            break
+            sys.exit(1)
       handle_BulbResponse(ndata)
-      break
+
     time_elapsed+=read_interval
     sleep(read_interval/1000.0)
-    break
+    recieve_BulbState()
 
 def handle_BulbResponse(ndata):
   '''
@@ -441,15 +440,15 @@ def yeelightCtrl():
 
    #if GPIO.input(24) == 0 or turnON == 0:
    if turnON == "off":
-      print "Ausschalten... bulbState: "+ gbulbState
+      #print "Ausschalten... bulbState: "+ gbulbState
       if bulbSt == "on" or gbulbState == "on":
-           print "Yeelight: TURN OFF"
+           #print "Yeelight: TURN OFF"
            set_BulbState(1, "off")
    #if GPIO.input(24) == 1 or turnON == 1:
    else:
-      print "Einschalten... bulbState: "+ gbulbState
+      #print "Einschalten... bulbState: "+ gbulbState
       if bulbSt == "off" or gbulbState == "off":
-           print "Yeelight : TURN ON"
+           #print "Yeelight : TURN ON"
            set_BulbState(1, "on")
 
 ## main starts here
@@ -461,9 +460,14 @@ detection_thread = Thread(target=bulbs_detection_loop)
 detection_thread.start()
 # give detection thread some time to collect bulb info
 sleep(0.2)
+# start the bulb state detection thread
+bulbState_thread = Thread(target=recieve_BulbState)
+bulbState_thread.start()
+sleep(0.2)
 # user interaction loop
 handle_yeeLight()
 # user interaction end, tell detection thread to quit and wait
 RUNNING = False
 detection_thread.join()
+bulbState_thread.join()
 # done
