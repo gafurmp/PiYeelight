@@ -337,6 +337,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
+      sleep(0.1)
 
     # passive listener
     while True:
@@ -350,6 +351,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
+      sleep(0.1)
 
     time_elapsed+=read_interval
     sleep(read_interval/1000.0)
@@ -395,9 +397,8 @@ def handle_yeeLight():
 
 def yeelightPreCtrl():
   while True:
-     recieve_BulbState()
-     sleep(0.2)
      yeelightCtrl()
+     sleep(0.1) 
 
      '''
      # set alarm
