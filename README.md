@@ -10,8 +10,8 @@ Pre-Conditions:
 Download the python script and run :)
 
 Enable Auto-run while start-up:
-   Edit Pi profile - sudo nano /etc/profile
-   Enter the below line to the end of the file
+   Edit rc.local - sudo nano /etc/rc.local
+   Enter the below line to the end of the file before exit 0
    sudo python /etc/myGit/yeelightCtrl.py &
 
 Common Error:
