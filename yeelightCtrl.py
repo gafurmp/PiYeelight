@@ -192,6 +192,7 @@ def print_cli_usage():
   print "  r|refresh: refresh bulb list"
   print "  l|list: lsit all managed bulbs"
 
+''' commented since not used
 def handle_user_input():
   '''
   User interaction loop.
@@ -248,6 +249,8 @@ def handle_user_input():
       print "error: invalid command line:", command_line
       print_cli_usage()
 '''
+
+'''
 Extension to Yeelight Developer code
 author: gafurmp
 '''
@@ -270,11 +273,11 @@ def set_BulbState(idx, state):
   else:
     params="\"on\",\"smooth\",500"
 
-  #print "Command Recieved:" + params
+  debug("Command Recieved:" + params)
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #print "connect ",bulb_ip, port ,"..."
+    debug("connect ",bulb_ip, port ,"...")
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -300,11 +303,11 @@ def find_BulbState(idx):
 
   params="\"power\""
 
-  #print "Command Recieved:" + params
+  debug("Command Recieved:" + params)
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #print "connect ",bulb_ip, port ,"..."
+    debug("connect ",bulb_ip, port ,"...")
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -366,7 +369,7 @@ def handle_BulbResponse(ndata):
   location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
   match = location_re.search(ndata)
   if match == None:
-    debug( "invalid data received: " + ndata )
+    debug("invalid data received: " + ndata)
     return 
 
   host_ip = match.group(1)
@@ -380,7 +383,7 @@ def handle_BulbResponse(ndata):
 
 def input():
     try:
-            #print 'You have 5 seconds to type in your stuff...'
+            debug('You have 5 seconds to type in your stuff...')
             inp = raw_input()
             return inp
     except:
@@ -405,7 +408,6 @@ def yeelightPreCtrl():
      signal.signal(signal.SIGALRM, interrupted)
      signal.alarm(2)
      command_line = input()
-
      # disable the alarm after success
      signal.alarm(0)
      debug("command_line=" + command_line)
@@ -422,12 +424,12 @@ def interrupted (signum, frame):
     return
 
 def yeelightCtrl():
-   #print "running Yeelight Controller...."
+   debug("running Yeelight Controller....")
    global gbulbState
    now = datetime.datetime.now()
    today630pm = now.replace(hour=18, minute=30, second=0, microsecond=0)
    today12am = now.replace(hour=23, minute=55, second=0, microsecond=0)
-   #print("time now =", now)
+   debug("time now =", now)
    turnON = "off"
    bulbSt = gbulbState
    if now > today630pm and now < today12am:
@@ -441,15 +443,15 @@ def yeelightCtrl():
 
    #if GPIO.input(24) == 0 or turnON == 0:
    if turnON == "off":
-      #print "Ausschalten... bulbState: "+ gbulbState
+      debug("Ausschalten... bulbState: "+ gbulbState)
       if bulbSt == "on" or gbulbState == "on":
-           #print "Yeelight: TURN OFF"
+           debug("Yeelight: TURN OFF")
            set_BulbState(1, "off")
    #if GPIO.input(24) == 1 or turnON == 1:
    else:
-      #print "Einschalten... bulbState: "+ gbulbState
+      debug("Einschalten... bulbState: "+ gbulbState)
       if bulbSt == "off" or gbulbState == "off":
-           #print "Yeelight : TURN ON"
+           debug("Yeelight : TURN ON")
            set_BulbState(1, "on")
 
 ## main starts here
