@@ -341,6 +341,7 @@ def recieve_BulbState():
             sys.exit(1)
       handle_BulbResponse(ndata)
       sleep(0.1)
+      break
 
     # passive listener
     while True:
@@ -355,10 +356,10 @@ def recieve_BulbState():
             sys.exit(1)
       handle_BulbResponse(ndata)
       sleep(0.1)
+      break
 
     time_elapsed+=read_interval
     sleep(read_interval/1000.0)
-    recieve_BulbState()
 
 def handle_BulbResponse(ndata):
   '''
