@@ -1,5 +1,8 @@
 ##!/usr/bin/python
 
+'''
+Import modules
+'''
 import socket  
 import time
 import fcntl
@@ -14,8 +17,14 @@ from threading import Thread
 from time import sleep
 from collections import OrderedDict
 
+'''
+Global Constants
+'''
 TIMEOUT = 5 # number of seconds your want for timeout
 
+'''
+Global Variables
+'''
 detected_bulbs = {}
 bulb_idx2ip = {}
 DEBUGGING = False
@@ -24,16 +33,12 @@ current_command_id = 0
 MCAST_GRP = '239.255.255.250'
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(24, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-gbulbState = "off"
+g_ylBulbStateAct = "off"
+g_ylBulbStateReq = "off"
 
-scan_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
-fcntl.fcntl(scan_socket, fcntl.F_SETFL, os.O_NONBLOCK)
-listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-listen_socket.bind(("", 1982))
-fcntl.fcntl(listen_socket, fcntl.F_SETFL, os.O_NONBLOCK)
-mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
-listen_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
+'''
+Module definitions
+'''
 def debug(msg):
   if DEBUGGING:
     print msg
@@ -94,6 +99,7 @@ def bulbs_detection_loop():
             sys.exit(1)
       handle_search_response(data)
 
+    display_bulbs()
     time_elapsed+=read_interval
     sleep(read_interval/1000.0)
   scan_socket.close()
@@ -183,75 +189,8 @@ def toggle_bulb(idx):
 def set_bright(idx, bright):
   operate_on_bulb(idx, "set_bright", str(bright))
 
-def print_cli_usage():
-  print "Usage:"
-  print "  q|quit: quit bulb manager"
-  print "  h|help: print this message"
-  print "  t|toggle <idx>: toggle bulb indicated by idx"
-  print "  b|bright <idx> <bright>: set brightness of bulb with label <idx>"
-  print "  r|refresh: refresh bulb list"
-  print "  l|list: lsit all managed bulbs"
-
-''' commented since not used
-def handle_user_input():
-  '''
-  User interaction loop.
-  '''
-  while True:
-    handle_gpio()
-    command_line = raw_input("Enter a command: ")
-    valid_cli=True
-    debug("command_line=" + command_line)
-    command_line.lower() # convert all user input to lower case, i.e. cli is caseless
-    argv = command_line.split() # i.e. don't allow parameters with space characters
-    if len(argv) == 0:
-      continue
-    if argv[0] == "q" or argv[0] == "quit":
-      print "Bye!"
-      return
-    elif argv[0] == "l" or argv[0] == "list":
-      display_bulbs()
-    elif argv[0] == "r" or argv[0] == "refresh":
-      detected_bulbs.clear()
-      bulb_idx2ip.clear()
-      send_search_broadcast()
-      #sleep(0.5)
-      #display_bulbs()
-    elif argv[0] == "h" or argv[0] == "help":
-      print_cli_usage()
-      continue
-    elif argv[0] == "t" or argv[0] == "toggle":
-      if len(argv) != 2:
-        valid_cli=False
-      else:
-        try:
-          i = int(float(argv[1]))
-          toggle_bulb(i)
-        except:
-          valid_cli=False
-    elif argv[0] == "b" or argv[0] == "bright":
-      if len(argv) != 3:
-        print "incorrect argc"
-        valid_cli=False
-      else:
-        try:
-          idx = int(float(argv[1]))
-          print "idx", idx
-          bright = int(float(argv[2]))
-          print "bright", bright
-          set_bright(idx, bright)
-        except:
-          valid_cli=False
-    else:
-      valid_cli=False
-
-    if not valid_cli:
-      print "error: invalid command line:", command_line
-      print_cli_usage()
 '''
-
-'''
-Extension to Yeelight Developer code
+Extension to Yeelight WifiBulb Lan controller provided by Yeelight (https://www.yeelight.com/en_US/developer)
 author: gafurmp
 '''
 def set_BulbState(idx, state):
@@ -340,7 +279,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
-      sleep(0.1)
+      sleep(0.2)
       break
 
     # passive listener
@@ -355,7 +294,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
-      sleep(0.1)
+      sleep(0.2)
       break
 
     time_elapsed+=read_interval
@@ -366,7 +305,7 @@ def handle_BulbResponse(ndata):
   Parse search response and extract all interested data.
   If new bulb is found, insert it into dictionary of managed bulbs. 
   '''
-  global gbulbState 
+  global g_ylBulbStateAct 
   location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
   match = location_re.search(ndata)
   if match == None:
@@ -379,99 +318,86 @@ def handle_BulbResponse(ndata):
   else:
     bulb_id = len(detected_bulbs)+1
   host_port = match.group(3)
-  gbulbState = get_param_value(ndata, "power")
-  print "Bulb State: " + gbulbState
+  g_ylBulbStateAct = get_param_value(ndata, "power")
+  print "Bulb State: " + g_ylBulbStateAct
 
-def input():
-    try:
-            debug('You have 5 seconds to type in your stuff...')
-            inp = raw_input()
-            return inp
-    except:
-            # timeout
-            return
-
-def handle_yeeLight():
-  detected_bulbs.clear()
-  bulb_idx2ip.clear()
-  send_search_broadcast()
-  sleep(0.2)
-  display_bulbs()
-  yeelightPreCtrl()
-
-def yeelightPreCtrl():
+def control_YeeLight():
   while True:
-     yeelightCtrl()
-     sleep(0.1) 
+     run_YeeLightCtrl()
+     sleep(0.2) 
 
-     '''
-     # set alarm
-     signal.signal(signal.SIGALRM, interrupted)
-     signal.alarm(2)
-     command_line = input()
-     # disable the alarm after success
-     signal.alarm(0)
-     debug("command_line=" + command_line)
-     command_line.lower() # convert all user input to lower case, i.e. cli is caseless
-     argv = command_line.split() # i.e. don't allow parameters with space characters
-     if len(argv) == 0:
-        continue
-     if argv[0] == "q" or argv[0] == "quit":
-        print "Bye!"
-        return
-     '''
-
-def interrupted (signum, frame):
-    return
-
-def yeelightCtrl():
+def run_YeeLightCtrl():
    debug("running Yeelight Controller....")
-   global gbulbState
-   now = datetime.datetime.now()
-   today630pm = now.replace(hour=18, minute=30, second=0, microsecond=0)
-   today12am = now.replace(hour=23, minute=55, second=0, microsecond=0)
-   debug("time now =", now)
-   turnON = "off"
-   bulbSt = gbulbState
-   if now > today630pm and now < today12am:
-      turnON = "on"
+   global g_ylBulbStateAct
+   global g_ylBulbStateReq
+   currentTime = datetime.datetime.now()
+   bulbStartTime = currentTime.replace(hour=18, minute=30, second=0, microsecond=0)
+   bulbStopTime = currentTime.replace(hour=23, minute=55, second=0, microsecond=0)
+   debug("time now =", currentTime)
+   target_BulbState = "off"
+   if currentTime > bulbStartTime and currentTime < bulbStopTime:
+      target_BulbState = "on"
    else:
-      tunrON = "off"
+      target_BulbState = "off"
 
    '''
    Add additional GPIO inputs, if you want to control the lamp with LDR or PIR inaddition and change the conditions accordingly
    '''
 
-   #if GPIO.input(24) == 0 or turnON == 0:
-   if turnON == "off":
-      debug("Ausschalten... bulbState: "+ gbulbState)
-      if bulbSt == "on" or gbulbState == "on":
+   if target_BulbState == "off":
+      debug("Ausschalten... bulbState: "+ g_ylBulbStateAct)
+      if g_ylBulbStateReq == "on" or g_ylBulbStateAct == "on":
            debug("Yeelight: TURN OFF")
+		   g_ylBulbStateReq = "off"
            set_BulbState(1, "off")
-   #if GPIO.input(24) == 1 or turnON == 1:
    else:
-      debug("Einschalten... bulbState: "+ gbulbState)
-      if bulbSt == "off" or gbulbState == "off":
+      debug("Einschalten... bulbState: "+ g_ylBulbStateAct)
+      if g_ylBulbStateReq == "off" or g_ylBulbStateAct == "off":
            debug("Yeelight : TURN ON")
+		   g_ylBulbStateReq = "on"
            set_BulbState(1, "on")
 
-## main starts here
-# print welcome message first
+'''
+Main starts here
+'''
 print "Welcome to Yeelight WifiBulb Lan controller"
-print_cli_usage
-# start the bulb detection thread
+scan_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+fcntl.fcntl(scan_socket, fcntl.F_SETFL, os.O_NONBLOCK)
+listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+listen_socket.bind(("", 1982))
+fcntl.fcntl(listen_socket, fcntl.F_SETFL, os.O_NONBLOCK)
+mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+listen_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+detected_bulbs.clear()
+bulb_idx2ip.clear()
+  
+'''
+Start Bulb detection thread
+'''
 detection_thread = Thread(target=bulbs_detection_loop)
 detection_thread.start()
-# give detection thread some time to collect bulb info
 sleep(0.2)
-# start the bulb state detection thread
+
+'''
+Start BulbState detection thread
+'''
 bulbState_thread = Thread(target=recieve_BulbState)
 bulbState_thread.start()
 sleep(0.2)
-# user interaction loop
-handle_yeeLight()
-# user interaction end, tell detection thread to quit and wait
+
+'''
+Start YeeLight controller thread
+'''
+ylCtrl_thread = Thread (target=control_YeeLight)
+ylCtrl_thread.Start()
+sleep(0.2)
+
+'''
+End of execution... Join threads
+'''
 RUNNING = False
 detection_thread.join()
 bulbState_thread.join()
-# done
+ylCtrl_thread.join()
+#done
