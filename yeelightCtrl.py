@@ -216,7 +216,7 @@ def set_BulbState(idx, state):
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    debug("connect ",bulb_ip, port ,"...")
+    debug("connect "+bulb_ip+ port +"...")
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -246,7 +246,7 @@ def find_BulbState(idx):
 
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    debug("connect ",bulb_ip, port ,"...")
+    debug("connect "+bulb_ip+ port +"...")
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -333,7 +333,7 @@ def run_YeeLightCtrl():
    currentTime = datetime.datetime.now()
    bulbStartTime = currentTime.replace(hour=18, minute=30, second=0, microsecond=0)
    bulbStopTime = currentTime.replace(hour=23, minute=55, second=0, microsecond=0)
-   debug("time now =", currentTime)
+   print("time now =", currentTime)
    target_BulbState = "off"
    if currentTime > bulbStartTime and currentTime < bulbStopTime:
       target_BulbState = "on"
@@ -390,7 +390,7 @@ sleep(0.2)
 Start YeeLight controller thread
 '''
 ylCtrl_thread = Thread (target=control_YeeLight)
-ylCtrl_thread.Start()
+ylCtrl_thread.start()
 sleep(0.2)
 
 '''
