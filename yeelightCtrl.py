@@ -348,13 +348,13 @@ def run_YeeLightCtrl():
       debug("Ausschalten... bulbState: "+ g_ylBulbStateAct)
       if g_ylBulbStateReq == "on" or g_ylBulbStateAct == "on":
            debug("Yeelight: TURN OFF")
-		   g_ylBulbStateReq = "off"
+	   g_ylBulbStateReq = "off"
            set_BulbState(1, "off")
    else:
       debug("Einschalten... bulbState: "+ g_ylBulbStateAct)
       if g_ylBulbStateReq == "off" or g_ylBulbStateAct == "off":
            debug("Yeelight : TURN ON")
-		   g_ylBulbStateReq = "on"
+	   g_ylBulbStateReq = "on"
            set_BulbState(1, "on")
 
 '''
