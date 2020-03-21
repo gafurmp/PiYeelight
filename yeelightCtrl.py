@@ -3,14 +3,14 @@
 '''
 Import modules
 '''
-import socket  
+import socket
 import time
 import fcntl
 import re
 import os
 import errno
 import struct
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import signal
 import datetime
 from threading import Thread
@@ -31,8 +31,8 @@ DEBUGGING = False
 RUNNING = True
 current_command_id = 0
 MCAST_GRP = '239.255.255.250'
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(24, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+#GPIO.setmode(GPIO.BCM)
+#GPIO.setup(24, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 g_ylBulbStateAct = "off"
 g_ylBulbStateReq = "off"
 
@@ -83,7 +83,8 @@ def bulbs_detection_loop():
             break
         else:
             print e
-            sys.exit(1)
+            #sys.exit(1)
+            break
       handle_search_response(data)
 
     # passive listener
@@ -97,13 +98,14 @@ def bulbs_detection_loop():
         else:
             print e
             sys.exit(1)
+            break
       handle_search_response(data)
 
     display_bulbs()
     time_elapsed+=read_interval
     sleep(read_interval/1000.0)
-  scan_socket.close()
-  listen_socket.close()
+  #scan_socket.close()
+  #listen_socket.close()
 
 def get_param_value(data, param):
   '''
@@ -143,7 +145,7 @@ def handle_search_response(data):
 
 def display_bulb(idx):
   if not bulb_idx2ip.has_key(idx):
-    print "error: invalid bulb idx"
+    debug("error: invalid bulb idx")
     return
   bulb_ip = bulb_idx2ip[idx]
   model = detected_bulbs[bulb_ip][1]
@@ -174,7 +176,7 @@ def operate_on_bulb(idx, method, params):
   port=detected_bulbs[bulb_ip][5]
   try:
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print "connect ",bulb_ip, port ,"..."
+    debug("connect "+ bulb_ip+ port ,"...")
     tcp_socket.connect((bulb_ip, int(port)))
     msg="{\"id\":" + str(next_cmd_id()) + ",\"method\":\""
     msg += method + "\",\"params\":[" + params + "]}\r\n"
@@ -279,7 +281,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
-      sleep(0.2)
+      sleep(0.02)
       break
 
     # passive listener
@@ -294,7 +296,7 @@ def recieve_BulbState():
             print e
             sys.exit(1)
       handle_BulbResponse(ndata)
-      sleep(0.2)
+      sleep(0.02)
       break
 
     time_elapsed+=read_interval
@@ -305,12 +307,12 @@ def handle_BulbResponse(ndata):
   Parse search response and extract all interested data.
   If new bulb is found, insert it into dictionary of managed bulbs. 
   '''
-  global g_ylBulbStateAct 
+  global g_ylBulbStateAct
   location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
   match = location_re.search(ndata)
   if match == None:
     debug("invalid data received: " + ndata)
-    return 
+    return
 
   host_ip = match.group(1)
   if detected_bulbs.has_key(host_ip):
@@ -319,12 +321,12 @@ def handle_BulbResponse(ndata):
     bulb_id = len(detected_bulbs)+1
   host_port = match.group(3)
   g_ylBulbStateAct = get_param_value(ndata, "power")
-  print "Bulb State: " + g_ylBulbStateAct
+  debug("Bulb State: " + g_ylBulbStateAct)
 
 def control_YeeLight():
   while True:
      run_YeeLightCtrl()
-     sleep(0.2) 
+     sleep(0.02)
 
 def run_YeeLightCtrl():
    debug("running Yeelight Controller....")
@@ -333,7 +335,8 @@ def run_YeeLightCtrl():
    currentTime = datetime.datetime.now()
    bulbStartTime = currentTime.replace(hour=18, minute=30, second=0, microsecond=0)
    bulbStopTime = currentTime.replace(hour=23, minute=55, second=0, microsecond=0)
-   print("time now =", currentTime)
+   #debug("time now ="+ currentTime)
+
    target_BulbState = "off"
    if currentTime > bulbStartTime and currentTime < bulbStopTime:
       target_BulbState = "on"
@@ -348,13 +351,13 @@ def run_YeeLightCtrl():
       debug("Ausschalten... bulbState: "+ g_ylBulbStateAct)
       if g_ylBulbStateReq == "on" or g_ylBulbStateAct == "on":
            debug("Yeelight: TURN OFF")
-	   g_ylBulbStateReq = "off"
+           g_ylBulbStateReq = "off"
            set_BulbState(1, "off")
    else:
       debug("Einschalten... bulbState: "+ g_ylBulbStateAct)
       if g_ylBulbStateReq == "off" or g_ylBulbStateAct == "off":
            debug("Yeelight : TURN ON")
-	   g_ylBulbStateReq = "on"
+           g_ylBulbStateReq = "on"
            set_BulbState(1, "on")
 
 '''
@@ -371,7 +374,7 @@ listen_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
 detected_bulbs.clear()
 bulb_idx2ip.clear()
-  
+
 '''
 Start Bulb detection thread
 '''
@@ -391,7 +394,7 @@ Start YeeLight controller thread
 '''
 ylCtrl_thread = Thread (target=control_YeeLight)
 ylCtrl_thread.start()
-sleep(0.2)
+sleep(0.02)
 
 '''
 End of execution... Join threads
