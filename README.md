@@ -6,7 +6,7 @@ This python package provides methods to controll Yeelight smart bulb.
 
 Clone or cownload this package and run **"pip install ."** from root of this package to install.
 
-# Example Usecase: 
+# Example usecase: 
 
 
 **Pre-Conditions:**
