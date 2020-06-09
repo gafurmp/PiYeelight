@@ -13,8 +13,9 @@ Clone or cownload this package and run **"pip install ."** from root of this pac
   - Install python3
   - Yeelight smart bulb
   - Download Yeelight app from Apple Store or Googleplay and enable "LAN Control"
-    Select your device -> goto More -> enable LAN Control
-**yeelight_main.py:**<br>
+    Select your device -> goto More -> enable LAN Control<br>
+
+**yeelight_main.py:** Detects YeeLight bulbs connected and toggle Idx 1 bulb between On & OFF every 1 minute.<br>
 ~~~
 from yeelight import YeeLight
 import datetime
