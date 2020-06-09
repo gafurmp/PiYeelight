@@ -1,4 +1,4 @@
-# Yeelight Smart Bulb controller:
+# Yeelight smart bulb controller:
 
 This python package provides methods to controll Yeelight smart bulb.
 
