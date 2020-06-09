@@ -31,4 +31,4 @@ Error: socket.error: [Errno 98] Address already in use
 Reason: This error will come if the cocket is already in use. for e.g. killed the python script without closing the socket.
 Solution: Kill the already running instance of the program since the socket is already in use.
 
-sudo kill -9 $(ps aux | grep '[p]ython yeelightCtrl.py' | awk '{print $2}')
+sudo kill -9 $(ps aux | grep '[p]ython /path/to/main/yeelight_main.py' | awk '{print $2}')
