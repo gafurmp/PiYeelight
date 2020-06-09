@@ -19,18 +19,13 @@ Clone or cownload this package and run **"pip install ."** from root of this pac
     
 **Enable Auto-run while start-up:**
 
-   Edit rc.local - sudo nano /etc/rc.local
-   
-   Enter the below line to the end of the file before exit 0
-   
-   sudo python /path/to/main/yeelight_main.py &
+   Edit rc.local - sudo nano /etc/rc.local<br>
+   Enter the below line to the end of the file before exit 0<br>
+   sudo python /path/to/main/yeelight_main.py &<br>
 
 **Common Errors:**
 
-**Error:** socket.error: [Errno 98] Address already in use.
-
-**Reason:** This error will come if the cocket is already in use. for e.g. killed the python script without closing the socket.
-
-**Solution:** Kill the already running instance of the program since the socket is already in use.
-
-sudo kill -9 $(ps aux | grep '[p]ython /path/to/main/yeelight_main.py' | awk '{print $2}')
+**Error:** socket.error: [Errno 98] Address already in use.<br>
+**Reason:** This error will come if the cocket is already in use. for e.g. killed the python script without closing the socket.<br>
+**Solution:** Kill the already running instance of the program since the socket is already in use.<br>
+sudo kill -9 $(ps aux | grep '[p]ython /path/to/main/yeelight_main.py' | awk '{print $2}')<br>
