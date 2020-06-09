@@ -19,13 +19,11 @@ Clone or cownload this package and run **"pip install ."** from root of this pac
     
 **Enable Auto-run while start-up:**
 
-
    Edit rc.local - sudo nano /etc/rc.local
    Enter the below line to the end of the file before exit 0
-   sudo python /etc/myGit/yeelightCtrl.py &
+   sudo python /path/to/main/yeelight_main.py &
 
 **Common Errors:**
-
 
 **Error:** socket.error: [Errno 98] Address already in use.
 
