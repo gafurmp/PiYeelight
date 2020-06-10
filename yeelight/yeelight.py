@@ -65,16 +65,18 @@ class YeeLight(object):
       err = e.args[0]
       if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
         self._debug("Socker Error: {0}".format(e))
-        return
+        return False
       else:
         self._debug("Socker Error: {0}".format(e))
-        return
+        return False
     finally:
       if data is not '':
         self._debug("response recieved: " + data)
         self._handle_Search_Response(data)
+        return True
       else:
         self._debug("no response...")
+        return False
 
   def listen_Socket_Passive(self):
     '''
@@ -89,16 +91,18 @@ class YeeLight(object):
       err = e.args[0]
       if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
         self._debug("Socker Error: {0}".format(e))
-        return
+        return False
       else:
         self._debug("Socker Error: {0}".format(e))
-        return
+        return False
     finally:
       if data is not '':
         self._debug("response recieved: " + data)
         self._handle_Search_Response(data)
+        return True
       else:
         self._debug("no response...")
+        return False
 
   def _get_Param_Value(self, data, param):
     '''
@@ -185,9 +189,9 @@ class YeeLight(object):
   def set_Brightness(self, idx, bright):
     self._operate_On_Bulb(idx, "set_bright", str(bright))
 
-  def set_BulbState(self, idx, state):
+  def set_BulbPower(self, idx, power):
     method="set_power"
-    if state == "off":
+    if power == "off":
       params="\"off\",\"smooth\",500"
     else:
       params="\"on\",\"smooth\",500"
@@ -201,6 +205,38 @@ class YeeLight(object):
     method="get_prop"
     params="\"power\""
     self._operate_On_Bulb(idx, method, params)
+
+  def get_BulbPower(self, idx):
+    '''
+    returns state of the requested bulb
+    '''
+    bulb_ip = self.bulb_idx2ip[idx]
+    power =  self.detected_bulbs[bulb_ip][2]
+    return power
+
+  def get_BulbModel(self, idx):
+    '''
+    returns state of the requested bulb
+    '''
+    bulb_ip = self.bulb_idx2ip[idx]
+    model =  self.detected_bulbs[bulb_ip][1]
+    return model
+
+  def get_BulbBrightness(self, idx):
+    '''
+    returns state of the requested bulb
+    '''
+    bulb_ip = self.bulb_idx2ip[idx]
+    bright =  self.detected_bulbs[bulb_ip][3]
+    return bright
+
+  def get_BulbColor(self, idx):
+    '''
+    returns state of the requested bulb
+    '''
+    bulb_ip = self.bulb_idx2ip[idx]
+    color =  self.detected_bulbs[bulb_ip][4]
+    return color
 
   def reset_Detected_Bulbs(self):
     '''
