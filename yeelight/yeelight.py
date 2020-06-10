@@ -212,6 +212,7 @@ class YeeLight(object):
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     power =  self.detected_bulbs[bulb_ip][2]
+    self._debug(power)
     return power
 
   def get_BulbModel(self, idx):
@@ -220,6 +221,7 @@ class YeeLight(object):
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     model =  self.detected_bulbs[bulb_ip][1]
+    self._debug(model)
     return model
 
   def get_BulbBrightness(self, idx):
@@ -228,6 +230,7 @@ class YeeLight(object):
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     bright =  self.detected_bulbs[bulb_ip][3]
+    self._debug(bright)
     return bright
 
   def get_BulbColor(self, idx):
@@ -236,6 +239,7 @@ class YeeLight(object):
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     color =  self.detected_bulbs[bulb_ip][4]
+    self._debug(color)
     return color
 
   def reset_Detected_Bulbs(self):
