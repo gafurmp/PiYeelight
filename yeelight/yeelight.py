@@ -16,7 +16,7 @@ from collections import OrderedDict
 
 class YeeLight(object):
   """
-  Yeelight class, which provides methods to control different aspects of smart bulb.
+  Yeelight class, which provides methods to control different aspects of yeelight smart bulb.
   """
   MCAST_GRP = '239.255.255.250'
 
@@ -55,7 +55,7 @@ class YeeLight(object):
 
   def scan_Broadcast_Response(self):
     '''
-    Scan port 2048 for on all responses
+    Scans socket for on all responses
     '''
     self._debug("scanning for response...")
     data = ''
@@ -80,7 +80,7 @@ class YeeLight(object):
 
   def listen_Socket_Passive(self):
     '''
-    This method will listen on port 2048 for responses.
+    Listens on socket for responses.
     Must be called in specified intervels for response after a request
     '''
     self._debug("listening for response...")
@@ -142,6 +142,10 @@ class YeeLight(object):
     self._display_Bulb(bulb_id)
 
   def _display_Bulb(self, idx):
+    '''
+    Display a bulb propertes
+    idx: index of bulb
+    '''
     if not self.bulb_idx2ip.has_key(idx):
       debug("error: invalid bulb idx")
       return
@@ -156,6 +160,9 @@ class YeeLight(object):
       + bright + ",rgb=" + rgb)
 
   def display_Bulbs(self):
+    '''
+    Displays all detected bulbs
+    '''
     self._debug(str(len(self.detected_bulbs)) + " managed bulbs")
     for i in range(1, len(self.detected_bulbs)+1):
       self._display_Bulb(i)
@@ -184,12 +191,26 @@ class YeeLight(object):
       self._debug("Unexpected error: {0}".format(e))
 
   def toggle_BulbState(self, idx):
+    '''
+    Toggles bulb's power
+    idx: index of bulb
+    '''
     self._operate_On_Bulb(idx, "toggle", "")
 
   def set_Brightness(self, idx, bright):
+    '''
+    Sets bulb's brightness
+    idx: index of bulb
+    bright: brightness in percentage
+    '''
     self._operate_On_Bulb(idx, "set_bright", str(bright))
 
   def set_BulbPower(self, idx, power):
+    '''
+    Sets bulb's power
+    idx: index of bulb
+    power: on/ off
+    '''
     method="set_power"
     if power == "off":
       params="\"off\",\"smooth\",500"
@@ -199,16 +220,17 @@ class YeeLight(object):
 
   def request_BulbState(self, idx):
     '''
-    Request wil be broadcasted.
+    Requests (broadcasted) bulb properties color, model, brightness and power.
     Caller must scan/ listen for the responses after the request.
     '''
     method="get_prop"
-    params="\"power\""
+    params="\"power\",\"bright\",\"rgb\",\"model\""
     self._operate_On_Bulb(idx, method, params)
 
   def get_BulbPower(self, idx):
     '''
-    returns state of the requested bulb
+    Gets bulb's power
+    idx: index of bulb
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     power =  self.detected_bulbs[bulb_ip][2]
@@ -217,7 +239,8 @@ class YeeLight(object):
 
   def get_BulbModel(self, idx):
     '''
-    returns state of the requested bulb
+    Gets bulb's model
+    idx. index of bulb
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     model =  self.detected_bulbs[bulb_ip][1]
@@ -226,7 +249,8 @@ class YeeLight(object):
 
   def get_BulbBrightness(self, idx):
     '''
-    returns state of the requested bulb
+    Gets bulb's brightness
+    idx: index of bulb
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     bright =  self.detected_bulbs[bulb_ip][3]
@@ -235,7 +259,8 @@ class YeeLight(object):
 
   def get_BulbColor(self, idx):
     '''
-    returns state of the requested bulb
+    Gets bulb's color
+    idx: bulb index
     '''
     bulb_ip = self.bulb_idx2ip[idx]
     color =  self.detected_bulbs[bulb_ip][4]
@@ -244,16 +269,25 @@ class YeeLight(object):
 
   def reset_Detected_Bulbs(self):
     '''
-    Method clear all detected bulbs and its indices.
+    Clears all detected bulbs and its indices.
     '''
     self.detected_bulbs.clear()
     self.bulb_idx2ip.clear()
 
   def is_Bulbs_Detected(self):
     '''
-    returns true if any bulb is detected
+    Returns true if atleast one bulb is detected
     '''
     res = bool(self.bulb_idx2ip) 
     return res
 
-
+  def set_BulbColor(self, idx, color = '1700', effect = 'smooth'):
+    '''
+    Sets bulb's color
+    idx: bulb index
+    color: range is 1700 ~ 6500
+    effect: smooth/ sudden
+    '''
+    method="set_ct_abx"
+    params=color + ",\" + effect + "\",500"
+    self._operate_On_Bulb(idx, method, params)
