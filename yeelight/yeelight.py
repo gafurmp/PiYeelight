@@ -15,6 +15,7 @@ import sys
 from collections import OrderedDict
 import logging
 from time import sleep
+import datetime
 
 #log file configuration
 logfile = '/var/log/YeeLight.log'
@@ -47,8 +48,10 @@ def display_Bulbs(bulbs, idx2ip):
     print(str(len(bulbs)) + " managed bulbs")
     for i in range(1, len(bulbs)+1):
        if not idx2ip.has_key(i):
-         logger.debug("Display bulb error: invalid bulb idx")
-         return
+          time = datetime.datetime.now()
+          logger.debug("{0}:".format(time))
+          logger.debug("Display bulb error: invalid bulb idx")
+          return
        bulb_ip = idx2ip[i]
        model = bulbs[bulb_ip][1]
        power = bulbs[bulb_ip][2]
@@ -57,6 +60,12 @@ def display_Bulbs(bulbs, idx2ip):
        name = bulbs[bulb_ip][5]
        port = bulbs[bulb_ip][6]
        print( str(i) + ": ip=" \
+         +bulb_ip + ",model=" + model \
+         +",power=" + power + ",bright=" \
+         + bright + ",rgb=" + rgb\
+         +",name=" +name\
+         +",port=" +port)
+       logger.debug( str(i) + ": ip=" \
          +bulb_ip + ",model=" + model \
          +",power=" + power + ",bright=" \
          + bright + ",rgb=" + rgb\
@@ -95,6 +104,8 @@ def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
            msg = msg + "MAN: \"ssdp:discover\"\r\n"
            msg = msg + "ST: wifi_bulb"
            scan_socket.sendto(msg, multicase_address)
+           time = datetime.datetime.now()
+           logger.debug("{0}:".format(time))
            logger.debug("Discovering bulbs- Send search request: " + msg)
            
            #scan for responses
@@ -222,24 +233,27 @@ class SmartBulb(object):
     bulb_ip=self._ip
     port=self._port
     try:
+        time = datetime.datetime.now()
+        logger.debug("{0}:".format(time))
         tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         logger.debug("connect "+ bulb_ip+ str(port) +"...")
         tcp_socket.connect((bulb_ip, int(port)))
         msg="{\"id\":" + str(self._next_Cmd_Id()) + ",\"method\":\""
         msg += method + "\",\"params\":[" + params + "]}\r\n"
         tcp_socket.send(msg)
+        logger.debug(msg)
     except socket.error as e:
         logger.debug("Unexpected error: {0}".format(e))
     finally:
         tcp_socket.close()
 
-  def toggle_BulbState(self):
+  def toggle(self):
     '''
     Toggles bulb's status
     '''
     self._operate_On_Bulb("toggle", "")
 
-  def set_BulbName(self, name):
+  def set_Name(self, name):
     '''
     Sets bulb's name
     name: name of bulb
@@ -253,7 +267,7 @@ class SmartBulb(object):
     '''
     self._operate_On_Bulb("set_bright", str(bright))
 
-  def set_BulbPower(self, power):
+  def set_Power(self, power):
     '''
     Sets bulb's target power status
     power: on/ off
@@ -265,7 +279,7 @@ class SmartBulb(object):
       params="\"on\",\"smooth\",500"
     self._operate_On_Bulb(method, params)
 
-  def get_BulbProperties(self, requested_properties =["power","bright","rgb","model","name"]):
+  def get_Properties(self, requested_properties =["power","bright","rgb","model","name"]):
     '''
     Gets bulb requested properties color, model, brightness, name and power.
     '''
@@ -276,12 +290,41 @@ class SmartBulb(object):
     params += "not_exist"
     self._operate_On_Bulb(method, params)
 
-  def set_BulbColor(self, ct = '1700', effect = 'smooth'):
+  def set_Ct(self, ct = '1700', effect = 'smooth'):
     '''
-    Sets bulb's color
+    Sets the color temperature of a smart LED.
     ct: target color temperature (1700 ~ 6500)
     effect: Transition (smooth/ or sudden)
     '''
     method="set_ct_abx"
-    params="\""+ color + "\",\"" + effect + "\",\"500\""
-    self._operate_On_Bulb(idx, method, params)
+    params="\""+ str(ct) + "\",\"" + effect + "\",\"500\""
+    self._operate_On_Bulb(method, params)
+    
+  def set_RGB(self, rgb = '16777215', effect = 'smooth'):
+    '''
+    Sets the color of a smart LED.
+    rgb: target rgb (1700 ~ 6500)
+    effect: Transition (smooth/ or sudden)
+    '''
+    method="set_rgb"
+    params="\""+ str(rgb) + "\",\"" + effect + "\",\"500\""
+    self._operate_On_Bulb(method, params)
+
+  def set_Hue(self, hue = '255', sat='45', effect = 'smooth'):
+    '''
+    Sets the color of a smart LED.
+    "hue": target hue value, whose type is integer. It should be expressed in decimal integer ranges from 0 to 359.
+    "sat": target saturation value whose type is integer. It's range is 0 to 100.
+    effect: Transition (smooth/ or sudden)
+    '''
+    method="set_hsv"
+    params="\""+ str(hue) + "\",\"" + str(sat) + "\",\"" + effect + "\",\"500\""
+    self._operate_On_Bulb(method, params)
+    
+  def set_Default(self):
+    '''
+    Saves current state of smart LED in persistent memory
+    '''
+    method="set_default"
+    params=""
+    self._operate_On_Bulb(method, params)
