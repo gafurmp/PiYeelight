@@ -17,42 +17,22 @@ Clone or cownload this package and run **"pip install ."** from root of this pac
 
 **yeelight_main.py:** Detects YeeLight bulbs connected and toggle Idx 1 bulb between On & OFF every 1 minute.<br>
 ~~~
-from yeelight import YeeLight
+from yeelight import *
 import datetime
 from threading import Thread
 from time import sleep
 import sys
 
 def main():
-  # create yeelight bulb object
-  bulb = YeeLight('ENABLE')
-
-  # detect yeelight bulbs
-  bulb.send_Search_Broadcast()
-
-  # scan post for response
-  bulb.scan_Broadcast_Response()
-
-  timeout = 1
+  # discover all connected bulbs on LAN
+  connected_bulbs, ip2idx = discover_YeelightSmartBulbs()
   
-  while True:
-    try:
-      print(bulb.is_Bulbs_Detected())
-      if (bulb.is_Bulbs_Detected() == False):
-        #listen on socket passivly
-        bulb.listen_Socket_Passive()
-      else:
-        timeout = 60
-        bulb.display_Bulbs()
-        bulb.toggle_BulbState(1)
-    except NameError as e:
-      print("Opps.. Error detected: {0}".format(e))
-    except:
-      print("Something went wrong!", sys.exc_info()[0])
-    finally:
-      sleep(timeout)
+  # create yeelight bulb object
+  bulb = SmartBulb('192.168.178.26')
+  
+  #toggle bulb state
+  bulb.toggle_BulbState()
      
-
 if __name__=='__main__':
   main()
 ~~~
