@@ -11,100 +11,23 @@ import os
 import errno
 import struct
 import signal
+import sys
 from collections import OrderedDict
+import logging
+from time import sleep
 
+#log file configuration
+logfile = '/var/log/YeeLight.log'
 
-class YeeLight(object):
-  """
-  Yeelight class, which provides methods to control different aspects of yeelight smart bulb.
-  """
-  MCAST_GRP = '239.255.255.250'
+#configure logger
+logging.basicConfig(filename=logfile, level=logging.DEBUG)
+ 
+# create logger
+logger = logging.getLogger('YeeLight')
 
-  def __init__(self, debug='DISABLE'):
-    self.scan_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
-    fcntl.fcntl(self.scan_socket, fcntl.F_SETFL, os.O_NONBLOCK)
-    self.listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    self.listen_socket.bind(("", 1982))
-    fcntl.fcntl(self.listen_socket, fcntl.F_SETFL, os.O_NONBLOCK)
-    self.mreq = struct.pack("4sl", socket.inet_aton(self.MCAST_GRP), socket.INADDR_ANY)
-    self.listen_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, self.mreq)
-    self.debug = debug
-    self.current_command_id = 0
-    self.detected_bulbs = {}
-    self.bulb_idx2ip = {}
+MCAST_GRP = '239.255.255.250'
 
-  def _debug(self, msg):
-    if self.debug == 'ENABLE':
-      print msg
-
-  def _next_Cmd_Id(self):
-    self.current_command_id += 1
-    return self.current_command_id
-
-  def send_Search_Broadcast(self):
-    '''
-    multicast search request to all hosts in LAN, do not wait for response
-    '''
-    multicase_address = (self.MCAST_GRP, 1982) 
-    msg = "M-SEARCH * HTTP/1.1\r\n" 
-    msg = msg + "HOST: 239.255.255.250:1982\r\n"
-    msg = msg + "MAN: \"ssdp:discover\"\r\n"
-    msg = msg + "ST: wifi_bulb"
-    self.scan_socket.sendto(msg, multicase_address)
-    self._debug("send search request: " + msg)
-
-  def scan_Broadcast_Response(self):
-    '''
-    Scans socket for on all responses
-    '''
-    self._debug("scanning for response...")
-    data = ''
-    try:
-      data = self.scan_socket.recv(2048)
-    except socket.error as e:
-      err = e.args[0]
-      if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
-        self._debug("Socker Error: {0}".format(e))
-        return False
-      else:
-        self._debug("Socker Error: {0}".format(e))
-        return False
-    finally:
-      if data is not '':
-        self._debug("response recieved: " + data)
-        self._handle_Search_Response(data)
-        return True
-      else:
-        self._debug("no response...")
-        return False
-
-  def listen_Socket_Passive(self):
-    '''
-    Listens on socket for responses.
-    Must be called in specified intervels for response after a request
-    '''
-    self._debug("listening for response...")
-    data = ''
-    try:
-      data, addr = self.listen_socket.recvfrom(2048)
-    except socket.error as e:
-      err = e.args[0]
-      if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
-        self._debug("Socker Error: {0}".format(e))
-        return False
-      else:
-        self._debug("Socker Error: {0}".format(e))
-        return False
-    finally:
-      if data is not '':
-        self._debug("response recieved: " + data)
-        self._handle_Search_Response(data)
-        return True
-      else:
-        self._debug("no response...")
-        return False
-
-  def _get_Param_Value(self, data, param):
+def get_Param_Value(data, param):
     '''
     match line of 'param = value'
     '''
@@ -115,100 +38,224 @@ class YeeLight(object):
       value = match.group(1)
     return value
 
-  def _handle_Search_Response(self, data):
-    '''
-    Parse search response and extract all interested data.
-    If new bulb is found, insert it into dictionary of managed bulbs. 
-    '''
-    location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
-    match = location_re.search(data)
-    if match == None:
-      self._debug( "invalid data received: " + data )
-      return
-
-    host_ip = match.group(1)
-    if self.detected_bulbs.has_key(host_ip):
-      bulb_id = self.detected_bulbs[host_ip][0]
-    else:
-      bulb_id = len(self.detected_bulbs)+1
-    host_port = match.group(3)
-    model = self._get_Param_Value(data, "model")
-    power = self._get_Param_Value(data, "power")
-    bright = self._get_Param_Value(data, "bright")
-    rgb = self._get_Param_Value(data, "rgb")
-    # use two dictionaries to store index->ip and ip->bulb map
-    self.detected_bulbs[host_ip] = [bulb_id, model, power, bright, rgb, host_port]
-    self.bulb_idx2ip[bulb_id] = host_ip
-    self._display_Bulb(bulb_id)
-
-  def _display_Bulb(self, idx):
-    '''
-    Display a bulb propertes
-    idx: index of bulb
-    '''
-    if not self.bulb_idx2ip.has_key(idx):
-      debug("error: invalid bulb idx")
-      return
-    bulb_ip = self.bulb_idx2ip[idx]
-    model = self.detected_bulbs[bulb_ip][1]
-    power = self.detected_bulbs[bulb_ip][2]
-    bright = self.detected_bulbs[bulb_ip][3]
-    rgb = self.detected_bulbs[bulb_ip][4]
-    self._debug( str(idx) + ": ip=" \
-      +bulb_ip + ",model=" + model \
-      +",power=" + power + ",bright=" \
-      + bright + ",rgb=" + rgb)
-
-  def display_Bulbs(self):
+def display_Bulbs(bulbs, idx2ip):
     '''
     Displays all detected bulbs
+    bulbs: dictionary of detected bulbs
+    idx2ip: list of detected devices
     '''
-    self._debug(str(len(self.detected_bulbs)) + " managed bulbs")
-    for i in range(1, len(self.detected_bulbs)+1):
-      self._display_Bulb(i)
+    print(str(len(bulbs)) + " managed bulbs")
+    for i in range(1, len(bulbs)+1):
+       if not idx2ip.has_key(i):
+         logger.debug("Display bulb error: invalid bulb idx")
+         return
+       bulb_ip = idx2ip[i]
+       model = bulbs[bulb_ip][1]
+       power = bulbs[bulb_ip][2]
+       bright = bulbs[bulb_ip][3]
+       rgb = bulbs[bulb_ip][4]
+       name = bulbs[bulb_ip][5]
+       port = bulbs[bulb_ip][6]
+       print( str(i) + ": ip=" \
+         +bulb_ip + ",model=" + model \
+         +",power=" + power + ",bright=" \
+         + bright + ",rgb=" + rgb\
+         +",name=" +name\
+         +",port=" +port)
 
-  def _operate_On_Bulb(self, idx, method, params):
+      
+def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
+    '''
+    Discover all connected yeelight smart lights in the LAN
+    timeout: timeout for socket scan, default: 5sec
+    search_duration: discovery search duration, default 30sec
+    '''
+    search_interval=search_duration
+    read_interval=100
+    time_elapsed=0
+  
+    scan_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
+    fcntl.fcntl(scan_socket, fcntl.F_SETFL, os.O_NONBLOCK)
+    listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    listen_socket.bind(("", 1982))
+    fcntl.fcntl(listen_socket, fcntl.F_SETFL, os.O_NONBLOCK)
+    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+    listen_socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    scan_socket.settimeout(timeout)
+    
+    detected_bulbs = {}
+    bulb_idx2ip = {}
+    RUNNING = True
+    
+    while RUNNING:
+       if time_elapsed%search_interval == 0:
+           multicase_address = (MCAST_GRP, 1982) 
+           msg = "M-SEARCH * HTTP/1.1\r\n" 
+           msg = msg + "HOST: 239.255.255.250:1982\r\n"
+           msg = msg + "MAN: \"ssdp:discover\"\r\n"
+           msg = msg + "ST: wifi_bulb"
+           scan_socket.sendto(msg, multicase_address)
+           logger.debug("Discovering bulbs- Send search request: " + msg)
+           
+           #scan for responses
+           while True:
+            try:
+                data = scan_socket.recv(2048)
+                if data is not '':
+                  logger.debug("response recieved: " + data)
+                  location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
+                  match = location_re.search(data)
+                  if match != None:      
+                     host_ip = match.group(1)
+                     if detected_bulbs.has_key(host_ip):
+                        bulb_id = detected_bulbs[host_ip][0]
+                     else:
+                        bulb_id = len(detected_bulbs)+1
+                     host_port = match.group(3)
+                     
+                     model = get_Param_Value(data, "model")
+                     power = get_Param_Value(data, "power")
+                     bright = get_Param_Value(data, "bright")
+                     rgb = get_Param_Value(data, "rgb")
+                     name = get_Param_Value(data, "name")
+                     
+                     # use two dictionaries to store index->ip and ip->bulb map
+                     detected_bulbs[host_ip] = [bulb_id, model, power, bright, rgb, name, host_port]
+                     bulb_idx2ip[bulb_id] = host_ip
+                     
+                     RUNNING = False
+            except socket.timeout:
+                logger.debug("Socker Timeout")
+                break
+            except socket.error, e:
+                err = e.args[0]
+                if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+                   logger.debug("discover_YeelightSmartLights Scan Socket - Error: "+ str(e))
+                   break
+                else:
+                   logger.debug("discover_YeelightSmartLights Scan Socket - Exit: " + str(e))
+                   sys.exit(1)
+
+           #listen for for responses
+           while True:
+            try:
+                data, addr = listen_socket.recvfrom(2048)
+                if data is not '':
+                  logger.debug("response recieved: " + data)
+                  location_re = re.compile("Location.*yeelight[^0-9]*([0-9]{1,3}(\.[0-9]{1,3}){3}):([0-9]*)")
+                  match = location_re.search(data)
+                  if match != None:              
+                     host_ip = match.group(1)
+                     if detected_bulbs.has_key(host_ip):
+                        bulb_id = detected_bulbs[host_ip][0]
+                     else:
+                        bulb_id = len(detected_bulbs)+1
+                     host_port = match.group(3)
+                     
+                     model = get_Param_Value(data, "model")
+                     power = get_Param_Value(data, "power")
+                     bright = get_Param_Value(data, "bright")
+                     rgb = get_Param_Value(data, "rgb")
+                     name = get_Param_Value(data, "name")
+                      
+                     # use two dictionaries to store index->ip and ip->bulb map
+                     detected_bulbs[host_ip] = [bulb_id, model, power, bright, rgb, name, host_port]
+                     bulb_idx2ip[bulb_id] = host_ip
+                     
+                     RUNNING = False
+            except socket.timeout:
+                logger.debug("Socker Timeout")
+                break
+            except socket.error, e:
+                err = e.args[0]
+                if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+                   logger.debug("discover_YeelightSmartLights Passive Listner - Error: "+ str(e))
+                   break
+                else:
+                   logger.debug("discover_YeelightSmartLights Passive Listner - Exit: " + str(e))
+                   sys.exit(1)
+           
+       time_elapsed+=read_interval
+       sleep(read_interval/1000.0)             
+        
+    scan_socket.close()
+    listen_socket.close()
+    
+    return detected_bulbs, bulb_idx2ip
+
+class SmartBulb(object):
+  """
+  SmartBulb class, which provides methods to control different aspects of yeelight smart bulb.
+  """
+  def __init__(self, ip, port=55443, power='off', rgb=16777215, duration=300, model=None, effect="smooth", brightness=0, name=''):
+    '''
+    Initialise SmartBulb object.
+    ip: ipv4 addr of device
+    port: detected port of device for comunication
+    power: Current status of the device ('on', 'off')
+    rgb: Current rgb value of the bulb display (decimal from 0 to 16777215)
+    model: model of the device ("mono","color", "stripe", "ceiling", "bslamp")
+    effect: transition effect ("smooth", "sudden")
+    brightness: Current brightness in percentage (0-100 in decimal)
+    name: Configured name of the device
+    '''
+    self._ip = ip
+    self._port = port
+    self._rgb= rgb
+    self._duration = duration
+    self._model = model
+    self._effect = effect
+    self._brightness= brightness
+    self._name = name
+    self._command_id = 0
+
+  def _next_Cmd_Id(self):
+    self._command_id += 1
+    return self._command_id
+
+  def _operate_On_Bulb(self, method, params):
     '''
     Operate on bulb; no gurantee of success.
     Input data 'params' must be a compiled into one string.
     E.g. params="1"; params="\"smooth\"", params="1,\"smooth\",80"
     '''
-    if not self.bulb_idx2ip.has_key(idx):
-      self._debug("Error: invalid bulb idx")
-      return
-
-    bulb_ip=self.bulb_idx2ip[idx]
-    port=self.detected_bulbs[bulb_ip][5]
+    bulb_ip=self._ip
+    port=self._port
     try:
-      tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self._debug("connect "+ bulb_ip+ port +"...")
-      tcp_socket.connect((bulb_ip, int(port)))
-      msg="{\"id\":" + str(self._next_Cmd_Id()) + ",\"method\":\""
-      msg += method + "\",\"params\":[" + params + "]}\r\n"
-      tcp_socket.send(msg)
-      tcp_socket.close()
-    except Exception as e:
-      self._debug("Unexpected error: {0}".format(e))
+        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        logger.debug("connect "+ bulb_ip+ str(port) +"...")
+        tcp_socket.connect((bulb_ip, int(port)))
+        msg="{\"id\":" + str(self._next_Cmd_Id()) + ",\"method\":\""
+        msg += method + "\",\"params\":[" + params + "]}\r\n"
+        tcp_socket.send(msg)
+    except socket.error as e:
+        logger.debug("Unexpected error: {0}".format(e))
+    finally:
+        tcp_socket.close()
 
-  def toggle_BulbState(self, idx):
+  def toggle_BulbState(self):
     '''
-    Toggles bulb's power
-    idx: index of bulb
+    Toggles bulb's status
     '''
-    self._operate_On_Bulb(idx, "toggle", "")
+    self._operate_On_Bulb("toggle", "")
 
-  def set_Brightness(self, idx, bright):
+  def set_BulbName(self, name):
+    '''
+    Sets bulb's name
+    name: name of bulb
+    '''
+    self._operate_On_Bulb("set_name", name)
+    
+  def set_Brightness(self, bright):
     '''
     Sets bulb's brightness
-    idx: index of bulb
     bright: brightness in percentage
     '''
-    self._operate_On_Bulb(idx, "set_bright", str(bright))
+    self._operate_On_Bulb("set_bright", str(bright))
 
-  def set_BulbPower(self, idx, power):
+  def set_BulbPower(self, power):
     '''
-    Sets bulb's power
-    idx: index of bulb
+    Sets bulb's target power status
     power: on/ off
     '''
     method="set_power"
@@ -216,78 +263,25 @@ class YeeLight(object):
       params="\"off\",\"smooth\",500"
     else:
       params="\"on\",\"smooth\",500"
-    self._operate_On_Bulb(idx, method, params)
+    self._operate_On_Bulb(method, params)
 
-  def request_BulbState(self, idx):
+  def get_BulbProperties(self, requested_properties =["power","bright","rgb","model","name"]):
     '''
-    Requests (broadcasted) bulb properties color, model, brightness and power.
-    Caller must scan/ listen for the responses after the request.
+    Gets bulb requested properties color, model, brightness, name and power.
     '''
     method="get_prop"
-    params="\"power\",\"bright\",\"rgb\",\"model\""
-    self._operate_On_Bulb(idx, method, params)
+    params=""
+    for property in requested_properties:
+       params += property +","
+    params += "not_exist"
+    self._operate_On_Bulb(method, params)
 
-  def get_BulbPower(self, idx):
-    '''
-    Gets bulb's power
-    idx: index of bulb
-    '''
-    bulb_ip = self.bulb_idx2ip[idx]
-    power =  self.detected_bulbs[bulb_ip][2]
-    self._debug(power)
-    return power
-
-  def get_BulbModel(self, idx):
-    '''
-    Gets bulb's model
-    idx. index of bulb
-    '''
-    bulb_ip = self.bulb_idx2ip[idx]
-    model =  self.detected_bulbs[bulb_ip][1]
-    self._debug(model)
-    return model
-
-  def get_BulbBrightness(self, idx):
-    '''
-    Gets bulb's brightness
-    idx: index of bulb
-    '''
-    bulb_ip = self.bulb_idx2ip[idx]
-    bright =  self.detected_bulbs[bulb_ip][3]
-    self._debug(bright)
-    return bright
-
-  def get_BulbColor(self, idx):
-    '''
-    Gets bulb's color
-    idx: bulb index
-    '''
-    bulb_ip = self.bulb_idx2ip[idx]
-    color =  self.detected_bulbs[bulb_ip][4]
-    self._debug(color)
-    return color
-
-  def reset_Detected_Bulbs(self):
-    '''
-    Clears all detected bulbs and its indices.
-    '''
-    self.detected_bulbs.clear()
-    self.bulb_idx2ip.clear()
-
-  def is_Bulbs_Detected(self):
-    '''
-    Returns true if atleast one bulb is detected
-    '''
-    res = bool(self.bulb_idx2ip) 
-    return res
-
-  def set_BulbColor(self, idx, color = '1700', effect = 'smooth'):
+  def set_BulbColor(self, ct = '1700', effect = 'smooth'):
     '''
     Sets bulb's color
-    idx: bulb index
-    color: range is 1700 ~ 6500
-    effect: smooth/ sudden
+    ct: target color temperature (1700 ~ 6500)
+    effect: Transition (smooth/ or sudden)
     '''
     method="set_ct_abx"
-    params=color + ",\" + effect + "\",500"
+    params="\""+ color + "\",\"" + effect + "\",\"500\""
     self._operate_On_Bulb(idx, method, params)
