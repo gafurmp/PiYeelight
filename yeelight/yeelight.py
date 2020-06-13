@@ -16,6 +16,7 @@ from collections import OrderedDict
 import logging
 from time import sleep
 import datetime
+import json
 
 #log file configuration
 logfile = '/var/log/YeeLight.log'
@@ -198,7 +199,7 @@ class SmartBulb(object):
   """
   SmartBulb class, which provides methods to control different aspects of yeelight smart bulb.
   """
-  def __init__(self, ip, port=55443, power='off', rgb=16777215, duration=300, model=None, effect="smooth", brightness=0, name=''):
+  def __init__(self, ip, port=55443, power='off', rgb=16777215, duration=300, model='color', effect="smooth", bright=0, name=''):
     '''
     Initialise SmartBulb object.
     ip: ipv4 addr of device
@@ -207,7 +208,7 @@ class SmartBulb(object):
     rgb: Current rgb value of the bulb display (decimal from 0 to 16777215)
     model: model of the device ("mono","color", "stripe", "ceiling", "bslamp")
     effect: transition effect ("smooth", "sudden")
-    brightness: Current brightness in percentage (0-100 in decimal)
+    bright: Current brightness in percentage (0-100 in decimal)
     name: Configured name of the device
     '''
     self._ip = ip
@@ -216,9 +217,10 @@ class SmartBulb(object):
     self._duration = duration
     self._model = model
     self._effect = effect
-    self._brightness= brightness
+    self._bright= bright
     self._name = name
     self._command_id = 0
+    self._lastproperties = {"power":power ,"bright":bright ,"rgb":rgb ,"model":model ,"name":name}
 
   def _next_Cmd_Id(self):
     self._command_id += 1
@@ -242,6 +244,22 @@ class SmartBulb(object):
         msg += method + "\",\"params\":[" + params + "]}\r\n"
         tcp_socket.send(msg)
         logger.debug(msg)
+        
+        response = None
+        
+        #scan for responses
+        while response is None:
+             data = tcp_socket.recv(2048)
+             if data is not "":
+                logger.debug("response recieved: " + data)
+                response = json.dumps(data) # to string
+                responsedict = json.loads(data) #to dict
+                if "result" in responsedict:
+                    resultlist = responsedict["result"]
+                    if method == 'get_prop':
+                        self._lastproperties = {"power":str(resultlist[0]) ,"bright":str(resultlist[1]) ,"rgb":str(resultlist[2]) ,"model":str(resultlist[3]) ,"name":str(resultlist[4])}
+        return self._lastproperties
+
     except socket.error as e:
         logger.debug("Unexpected error: {0}".format(e))
     finally:
@@ -258,7 +276,7 @@ class SmartBulb(object):
     Sets bulb's name
     name: name of bulb
     '''
-    self._operate_On_Bulb("set_name", name)
+    self._operate_On_Bulb("set_name", "\""+name+"\"")
     
   def set_Brightness(self, bright):
     '''
@@ -284,11 +302,14 @@ class SmartBulb(object):
     Gets bulb requested properties color, model, brightness, name and power.
     '''
     method="get_prop"
-    params=""
+    params="\""
     for property in requested_properties:
-       params += property +","
-    params += "not_exist"
-    self._operate_On_Bulb(method, params)
+       params += property + "\",\""
+    params += "not_exist\""
+    
+    properties = self._operate_On_Bulb(method, params)
+    
+    return properties
 
   def set_Ct(self, ct = '1700', effect = 'smooth'):
     '''
@@ -297,7 +318,7 @@ class SmartBulb(object):
     effect: Transition (smooth/ or sudden)
     '''
     method="set_ct_abx"
-    params="\""+ str(ct) + "\",\"" + effect + "\",\"500\""
+    params=str(ct) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
     
   def set_RGB(self, rgb = '16777215', effect = 'smooth'):
@@ -307,7 +328,7 @@ class SmartBulb(object):
     effect: Transition (smooth/ or sudden)
     '''
     method="set_rgb"
-    params="\""+ str(rgb) + "\",\"" + effect + "\",\"500\""
+    params=str(rgb) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
 
   def set_Hue(self, hue = '255', sat='45', effect = 'smooth'):
@@ -318,12 +339,13 @@ class SmartBulb(object):
     effect: Transition (smooth/ or sudden)
     '''
     method="set_hsv"
-    params="\""+ str(hue) + "\",\"" + str(sat) + "\",\"" + effect + "\",\"500\""
+    params=str(hue) + "," + str(sat) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
     
   def set_Default(self):
     '''
     Saves current state of smart LED in persistent memory
+    Not supported by all devices
     '''
     method="set_default"
     params=""
