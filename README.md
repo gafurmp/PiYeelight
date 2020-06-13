@@ -28,10 +28,11 @@ def main():
   connected_bulbs, ip2idx = discover_YeelightSmartBulbs()
   
   # create yeelight bulb object
-  bulb = SmartBulb('192.168.178.26')
+  host_ip = ip2idx[1] # idx 1
+  bulb = SmartBulb(host_ip)
   
   #toggle bulb state
-  bulb.toggle_BulbState()
+  bulb.toggle()
      
 if __name__=='__main__':
   main()
