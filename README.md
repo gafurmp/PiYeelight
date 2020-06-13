@@ -37,13 +37,3 @@ def main():
 if __name__=='__main__':
   main()
 ~~~
-**Enable Auto-run while start-up:**<br>
-   Edit rc.local - sudo nano /etc/rc.local<br>
-   Enter the below line to the end of the file before exit 0<br>
-   sudo python /path/to/main/yeelight_main.py &<br>
-
-**Common Errors:**<br>
-**Error:** socket.error: [Errno 98] Address already in use.<br>
-**Reason:** This error will come if the cocket is already in use. for e.g. killed the python script without closing the socket.<br>
-**Solution:** Kill the already running instance of the program since the socket is already in use.<br>
-sudo kill -9 $(ps aux | grep '[p]ython /path/to/main/yeelight_main.py' | awk '{print $2}')<br>
