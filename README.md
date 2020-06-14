@@ -33,6 +33,15 @@ def main():
   
   #toggle bulb state
   bulb.toggle()
+
+  #get properties
+  properties = bulb.get_prop() #will return a dict 
+  power = properties["power"]
+  name = properties["name"]
+
+  #set name
+  bulb.set_name("masterroom")
+  
      
 if __name__=='__main__':
   main()
