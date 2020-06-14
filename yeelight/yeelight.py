@@ -144,7 +144,7 @@ def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
             except socket.timeout:
                 logger.debug("Socker Timeout")
                 break
-            except socket.error, e:
+            except socket.error as e:
                 err = e.args[0]
                 if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
                    logger.debug("discover_YeelightSmartLights Scan Socket - Error: "+ str(e))
@@ -183,7 +183,7 @@ def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
             except socket.timeout:
                 logger.debug("Socker Timeout")
                 break
-            except socket.error, e:
+            except socket.error as e:
                 err = e.args[0]
                 if err == errno.EAGAIN or err == errno.EWOULDBLOCK:
                    logger.debug("discover_YeelightSmartLights Passive Listner - Error: "+ str(e))
