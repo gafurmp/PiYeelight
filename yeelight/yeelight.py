@@ -73,6 +73,11 @@ def display_Bulbs(bulbs, idx2ip):
          +",name=" +name\
          +",port=" +port)
 
+def BulbException(Exception):
+    '''
+    Modules inside this packge will raise this exception in case of any errors!
+    '''
+    pass
       
 def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
     '''
@@ -221,6 +226,7 @@ class SmartBulb(object):
     self._name = name
     self._command_id = 0
     self._lastproperties = {"power":power ,"bright":bright ,"rgb":rgb ,"model":model ,"name":name}
+    self._music = 0
 
   def _next_Cmd_Id(self):
     self._command_id += 1
@@ -234,36 +240,40 @@ class SmartBulb(object):
     '''
     bulb_ip=self._ip
     port=self._port
-    try:
-        time = datetime.datetime.now()
-        logger.debug("{0}:".format(time))
-        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        logger.debug("connect "+ bulb_ip+ str(port) +"...")
-        tcp_socket.connect((bulb_ip, int(port)))
-        msg="{\"id\":" + str(self._next_Cmd_Id()) + ",\"method\":\""
-        msg += method + "\",\"params\":[" + params + "]}\r\n"
-        tcp_socket.send(msg)
-        logger.debug(msg)
-        
-        response = None
-        
-        #scan for responses
-        while response is None:
-             data = tcp_socket.recv(2048)
-             if data is not "":
-                logger.debug("response recieved: " + data)
-                response = json.dumps(data) # to string
-                responsedict = json.loads(data) #to dict
-                if "result" in responsedict:
-                    resultlist = responsedict["result"]
-                    if method == 'get_prop':
-                        self._lastproperties = {"power":str(resultlist[0]) ,"bright":str(resultlist[1]) ,"rgb":str(resultlist[2]) ,"model":str(resultlist[3]) ,"name":str(resultlist[4])}
-        return self._lastproperties
-
-    except socket.error as e:
-        logger.debug("Unexpected error: {0}".format(e))
-    finally:
-        tcp_socket.close()
+    
+    if ( (self._music != 1) or (method == "set_music") ):
+       try:
+           time = datetime.datetime.now()
+           logger.debug("{0}:".format(time))
+           tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+           logger.debug("connect "+ bulb_ip+ str(port) +"...")
+           tcp_socket.connect((bulb_ip, int(port)))
+           msg="{\"id\":" + str(self._next_Cmd_Id()) + ",\"method\":\""
+           msg += method + "\",\"params\":[" + params + "]}\r\n"
+           tcp_socket.send(msg)
+           logger.debug(msg)
+           
+           response = None
+           
+           #scan for responses
+           while response is None:
+                data = tcp_socket.recv(2048)
+                if data is not "":
+                   logger.debug("response recieved: " + data)
+                   response = json.dumps(data) # to string
+                   responsedict = json.loads(data) #to dict
+                   if "result" in responsedict:
+                       resultlist = responsedict["result"]
+                       if method == 'get_prop':
+                           self._lastproperties = {"power":str(resultlist[0]) ,"bright":str(resultlist[1]) ,"rgb":str(resultlist[2]) ,"model":str(resultlist[3]) ,"name":str(resultlist[4])}
+           return self._lastproperties
+      
+       except socket.error as e:
+           logger.debug("Unexpected error: {0}".format(e))
+       finally:
+           tcp_socket.close()
+    else:
+        logger.debug("Music mode ON. Request can not be processed")
 
   def toggle(self):
     '''
@@ -271,21 +281,21 @@ class SmartBulb(object):
     '''
     self._operate_On_Bulb("toggle", "")
 
-  def set_Name(self, name):
+  def set_name(self, name):
     '''
     Sets bulb's name
     name: name of bulb
     '''
     self._operate_On_Bulb("set_name", "\""+name+"\"")
     
-  def set_Brightness(self, bright):
+  def set_bright(self, bright):
     '''
     Sets bulb's brightness
     bright: brightness in percentage
     '''
     self._operate_On_Bulb("set_bright", str(bright))
 
-  def set_Power(self, power):
+  def set_power(self, power):
     '''
     Sets bulb's target power status
     power: on/ off
@@ -297,7 +307,7 @@ class SmartBulb(object):
       params="\"on\",\"smooth\",500"
     self._operate_On_Bulb(method, params)
 
-  def get_Properties(self, requested_properties =["power","bright","rgb","model","name"]):
+  def get_prop(self, requested_properties =["power","bright","rgb","model","name"]):
     '''
     Gets bulb requested properties color, model, brightness, name and power.
     '''
@@ -311,7 +321,7 @@ class SmartBulb(object):
     
     return properties
 
-  def set_Ct(self, ct = '1700', effect = 'smooth'):
+  def set_ct_abx(self, ct = '1700', effect = 'smooth'):
     '''
     Sets the color temperature of a smart LED.
     ct: target color temperature (1700 ~ 6500)
@@ -321,7 +331,7 @@ class SmartBulb(object):
     params=str(ct) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
     
-  def set_RGB(self, rgb = '16777215', effect = 'smooth'):
+  def set_rgb(self, rgb = '16777215', effect = 'smooth'):
     '''
     Sets the color of a smart LED.
     rgb: target rgb (1700 ~ 6500)
@@ -331,7 +341,7 @@ class SmartBulb(object):
     params=str(rgb) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
 
-  def set_Hue(self, hue = '255', sat='45', effect = 'smooth'):
+  def set_hsv(self, hue = '255', sat='45', effect = 'smooth'):
     '''
     Sets the color of a smart LED.
     "hue": target hue value, whose type is integer. It should be expressed in decimal integer ranges from 0 to 359.
@@ -342,7 +352,7 @@ class SmartBulb(object):
     params=str(hue) + "," + str(sat) + ",\"" + effect + "\",500"
     self._operate_On_Bulb(method, params)
     
-  def set_Default(self):
+  def set_default(self):
     '''
     Saves current state of smart LED in persistent memory
     Not supported by all devices
@@ -350,3 +360,124 @@ class SmartBulb(object):
     method="set_default"
     params=""
     self._operate_On_Bulb(method, params)
+    
+  def start_cf(self, count, action, flow_expression):
+    '''
+    Starts a color flow. Color flow is a series of smart.
+    LED visible state changing. It can be brightness changing, color changing or color temperature changing
+    count: is the total number of visible state changing before color flow stopped. 0 means infinite loop on the state changing.
+    action: is the action taken after the flow is stopped.
+    0 means smart LED recover to the state before the color flow started.
+    1 means smart LED stay at the state when the flow is stopped.
+    2 means turn off the smart LED after the flow is stopped.
+    flow_expression: is the expression of the state changing series (as string)
+    '''     
+    method="start_cf"
+    params= str(count) + ","+ str(action) + "," + ",\"" + flow_expression + "\""
+    self._operate_On_Bulb(method, params)
+     
+  def stop_cf(self):
+    '''
+    Stops a running color flow
+    '''     
+    method="stop_cf"
+    params=""
+    self._operate_On_Bulb(method, params)  
+     
+  def set_scene(self, _class):
+    '''
+    Sets the smart LED directly to specified state
+    _class: can be "color", "hsv", "ct", "cf", "auto_dealy_off". "color" means change the smart LED to specified color and brightness
+    Pass the parameter as string of commands.
+    e.g. "\"color\", 65280, 70"
+    "\"hsv\", 300, 70, 100"
+    
+    '''     
+    method="set_scene"
+    params= _class
+    self._operate_On_Bulb(method, params)  
+     
+  def cron_add(self, _type, value):
+    '''
+    Starts a timer job on the smart LED
+    _type: currently can only be 0  (means power off)
+    value: is the length of the timer (in minutes)
+    '''     
+    method="cron_add"
+    params=str(_type) + "," + str(value)
+    self._operate_On_Bulb(method, params)  
+     
+  def cron_get(self, _type):
+    '''
+    Retrieves the setting of the current cron job of the specified type
+    _type: the type of the cron job. (currently only support 0)
+    '''     
+    method="cron_get"
+    params=str(_type)
+    self._operate_On_Bulb(method, params)  
+     
+  def cron_del(self, _type):
+    '''
+    Stops the specified cron job
+    _type: the type of the cron job. (currently only support 0)
+    '''     
+    method="cron_del"
+    params=str(_type)
+    self._operate_On_Bulb(method, params)  
+
+  def set_adjust(self, action, prop):
+    '''
+    Changes brightness, CT or color of a smart LED without knowing the current value, it's main used by controllers.
+    action: the direction of the adjustment. The valid value can be:
+    "increase": increase the specified property
+    "decrease": decrease the specified property
+    "circle": increase the specified property, after it reaches the max
+    prop: the property to adjust. The valid value can be:
+    "bright": adjust brightness.
+    "ct": adjust color temperature.
+    "color": adjust color. (When "prop" is "color", the "action" can only be "circle", otherwise, it will be deemed as invalid request.)
+    '''     
+    method="set_adjust"
+    params="\"" + action + "\",\"" + prop + "\""
+    self._operate_On_Bulb(method, params)  
+     
+  def adjust_bright(self, percentage):
+    '''
+    Adjusts the brightness by specified percentage within specified duration.
+    percentage: the percentage to be adjusted. The range is: -100 ~ 100
+    '''     
+    method="adjust_bright"
+    params= str(percentage)+",500"
+    self._operate_On_Bulb(method, params)  
+     
+  def adjust_ct(self, percentage):
+    '''
+    Adjusts the color temperature by specified percentage within specified duration.
+    percentage: the percentage to be adjusted. The range is: -100 ~ 100
+    '''     
+    method="adjust_ct"
+    params= str(percentage)+",500"
+    self._operate_On_Bulb(method, params)  
+     
+  def adjust_color(self, percentage):
+    '''
+    Adjusts the color  by specified percentage within specified duration.
+    percentage: the percentage to be adjusted. The range is: -100 ~ 100
+    '''     
+    method="adjust_color"
+    params= str(percentage)+",500"
+    self._operate_On_Bulb(method, params)  
+     
+  def set_music (self, action, host, port):
+    '''
+    Starts or stop music mode on a device. Under music mode, no property will be reported and no message quota is checked.
+    action: the action of set_music command. The valid value can be:
+    0: turn off music mode.
+    1: turn on music mode.
+    host: the IP address of the music server as string.
+    port: the TCP port music application is listening on.
+    '''     
+    method="set_music"
+    params= str(action) + ",\"" + host + "\","+str(port)
+    self._music = action
+    self._operate_On_Bulb(method, params)  

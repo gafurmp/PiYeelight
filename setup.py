@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='yeelight',
-version='0.2',
+version='1.0',
 description='Yeelight Smart Bult Python Package',
 url='#',
 author='Abdul Gafoor Mannoo Parambil',
