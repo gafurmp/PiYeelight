@@ -142,7 +142,7 @@ def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
                      
                      RUNNING = False
             except socket.timeout:
-                logger.debug("Socker Timeout")
+                logger.debug("Socket Timeout")
                 break
             except socket.error as e:
                 err = e.args[0]
@@ -181,7 +181,7 @@ def discover_YeelightSmartBulbs(timeout=5, search_duration=30000):
                      
                      RUNNING = False
             except socket.timeout:
-                logger.debug("Socker Timeout")
+                logger.debug("Socket Timeout")
                 break
             except socket.error as e:
                 err = e.args[0]
